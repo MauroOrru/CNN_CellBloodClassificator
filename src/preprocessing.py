@@ -4,7 +4,6 @@ import os
 from scipy.signal import butter, filtfilt, iirnotch, hilbert
 from PyEMD import EMD
 
-CIAOOOOOOOOOOOOOOOOOOOOOO
 # Definiamo le bande di frequenza
 FREQ_BANDS = {
     "Delta": (0.5, 4),

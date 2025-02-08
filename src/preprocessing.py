@@ -33,7 +33,7 @@ def apply_bandpass(signal, lowcut, highcut, fs=128.0, order=5):
 
 def preprocess_eeg_filtering(file_path, num_channels, num_samples_per_channel, fs=128.0):
     """
-    Applica il filtraggio EEG (Notch + 6 Bande di frequenza).
+    Applica il filtraggio EEG (Rimozione DC Offset + Notch + 6 Bande di frequenza).
     """
     df = pd.read_csv(file_path, delimiter=',', skip_blank_lines=False, encoding='utf-8')
 
@@ -43,7 +43,7 @@ def preprocess_eeg_filtering(file_path, num_channels, num_samples_per_channel, f
     eeg_data = df.iloc[:, 1:].values
 
     print(f"⚡ Numero di esempi letti dal CSV originale: {df.shape[0]}")
-    print(f"⚡ Label degli esempi originali: {labels}")
+    # print(f"⚡ Label degli esempi originali: {labels}")
 
     num_samples = eeg_data.shape[0]
     expected_columns = num_channels * num_samples_per_channel
@@ -53,28 +53,37 @@ def preprocess_eeg_filtering(file_path, num_channels, num_samples_per_channel, f
 
     eeg_data_filtered = np.zeros((num_samples, num_channels * num_samples_per_channel * 6))
 
-    for i in range(num_samples):  # ✅ Iniziamo sempre da 0
+    for i in range(num_samples):
         print(f"🧐 Sto elaborando l'esempio {i} con label {labels[i]}")  # Debug
 
         eeg_signals = eeg_data[i].reshape(num_channels, num_samples_per_channel)
+
+        # **RIMOZIONE DELLA COMPONENTE CONTINUA (DC OFFSET)**
+        eeg_signals -= np.mean(eeg_signals, axis=1, keepdims=True)
+
         filtered_signals = []
         for ch in range(num_channels):
+            # **Filtro Notch dopo la rimozione del DC offset**
             notch_filtered_signal = notch_filter(eeg_signals[ch, :], freq=50.0, fs=fs)
+            
+            # Filtraggio nelle 6 bande di frequenza
             channel_bands = [apply_bandpass(notch_filtered_signal, low, high, fs) for low, high in FREQ_BANDS.values()]
             filtered_signals.append(np.concatenate(channel_bands))
+
         eeg_data_filtered[i] = np.concatenate(filtered_signals)
 
     df_filtered = pd.DataFrame(np.column_stack((labels, eeg_data_filtered)))
 
     print(f"⚡ Numero di esempi nel dataset filtrato PRIMA del salvataggio: {df_filtered.shape[0]}")
-    print(f"⚡ Label PRIMA del salvataggio: {df_filtered.iloc[:, 0].values}")
+    # print(f"⚡ Label PRIMA del salvataggio: {df_filtered.iloc[:, 0].values}")
 
     output_file = f"{base_name}_filtered.csv"
-    df_filtered.to_csv(output_file, index=False, header=True, na_rep='0', encoding='utf-8')
 
-    df_check = pd.read_csv(output_file)
+    df_filtered.to_csv(output_file, index=False, header=False, na_rep='0', encoding='utf-8')
+
+    df_check = pd.read_csv(output_file, header=None)
     print(f"🔍 Esempi salvati nel CSV filtrato: {df_check.shape[0]}")
-    print(f"🔍 Label salvate nel CSV filtrato: {df_check.iloc[:, 0].values}")
+    print(f"🔍 Prime righe del CSV filtrato:\n{df_check.head()}")
 
     return output_file
 
@@ -92,7 +101,6 @@ def apply_emd(signal, max_imfs=10):
     elif num_imfs > max_imfs:
         imfs = imfs[:max_imfs, :]
 
-    # print(f"IMF finali: {imfs.shape[0]} (dovrebbe essere {max_imfs})")
     return imfs
 
 def extract_hht_features(imfs):
@@ -115,21 +123,22 @@ def preprocess_emd(file_path, num_channels, num_samples_per_channel, max_imfs=10
     """
     Applica EMD e salva il dataset finale con feature IA, IP, IF.
     """
-    df = pd.read_csv(file_path, delimiter=',', skip_blank_lines=False, encoding='utf-8')
+    df = pd.read_csv(file_path, delimiter=',', skip_blank_lines=False, encoding='utf-8', header=None)
 
     base_name = os.path.splitext(file_path)[0]
 
     labels = df.iloc[:, 0].values
     eeg_data = df.iloc[:, 1:].values
 
-    print(f"⚡ Dataset filtrato caricato per EMD: {df.shape}")
+    print(f"⚡ Numero di esempi nel CSV filtrato prima dell'EMD: {df.shape[0]}")
+    # print(f"⚡ Label degli esempi nel CSV filtrato: {labels}")
 
     num_samples = eeg_data.shape[0]
     num_features_per_signal = num_channels * len(FREQ_BANDS) * max_imfs * 3  
 
     feature_matrix = np.zeros((num_samples, num_features_per_signal))
 
-    for i in range(num_samples):  # ✅ Iniziamo sempre da 0
+    for i in range(num_samples):
         print(f"🧐 EMD - Elaborazione esempio {i} con label {labels[i]}")  # Debug
 
         eeg_signals = eeg_data[i].reshape(num_channels, 6, num_samples_per_channel)
@@ -138,8 +147,13 @@ def preprocess_emd(file_path, num_channels, num_samples_per_channel, max_imfs=10
         for ch in range(num_channels):
             for band in range(6):
                 imfs = apply_emd(eeg_signals[ch, band, :], max_imfs=max_imfs)
-                ia, ip, if_ = extract_hht_features(imfs)
 
+                if imfs.shape[0] == 0:
+                    print(f"⚠ Nessuna IMF per esempio {i}, assegno feature di default.")
+                    feature_vector.extend(np.zeros(num_features_per_signal))  # 🟢 Ora non lo salta!
+                    continue
+
+                ia, ip, if_ = extract_hht_features(imfs)
                 feature_vector.extend(np.mean(ia, axis=1))
                 feature_vector.extend(np.mean(ip, axis=1))
                 feature_vector.extend(np.mean(if_, axis=1))
@@ -151,13 +165,14 @@ def preprocess_emd(file_path, num_channels, num_samples_per_channel, max_imfs=10
     df_emd.to_csv(output_file, index=False, header=False)
 
     print(f"⚡ Dataset finale salvato: {df_emd.shape}")
+    # print(f"⚡ Label finali nel dataset preproc: {df_emd.iloc[:, 0].values}")
 
     return output_file
 
 
 ### MAIN ###
 def main():
-    file_path = r"C:\Users\Mauro\Desktop\Mauro\Universita\AI\Progetto\Dataset\test_lines2_3.csv"
+    file_path = r"C:\Users\Mauro\Desktop\Mauro\Universita\AI\Progetto\Dataset\test.csv"
     num_channels = 14
     num_samples_per_channel = 256
     fs = 128.0  

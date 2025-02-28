@@ -121,9 +121,9 @@ def extract_hht_features(imfs):
 
 def preprocess_emd(file_path, num_channels, num_samples_per_channel, max_imfs=10):
     """
-    Applica EMD e salva il dataset finale con feature IA, IP, IF.
+    Applica EMD e salva il dataset finale con feature IA, IP, IF senza ridurre la dimensione con la media.
     """
-    df = pd.read_csv(file_path, delimiter=',', skip_blank_lines=False, encoding='utf-8', header=None)
+    df = pd.read_csv(file_path, delimiter=',', skip_blank_lines=False, encoding='utf-8')
 
     base_name = os.path.splitext(file_path)[0]
 
@@ -131,10 +131,10 @@ def preprocess_emd(file_path, num_channels, num_samples_per_channel, max_imfs=10
     eeg_data = df.iloc[:, 1:].values
 
     print(f"⚡ Numero di esempi nel CSV filtrato prima dell'EMD: {df.shape[0]}")
-    # print(f"⚡ Label degli esempi nel CSV filtrato: {labels}")
+    print(f"⚡ Label degli esempi nel CSV filtrato: {labels}")
 
     num_samples = eeg_data.shape[0]
-    num_features_per_signal = num_channels * len(FREQ_BANDS) * max_imfs * 3  
+    num_features_per_signal = num_channels * len(FREQ_BANDS) * max_imfs * eeg_data.shape[1]  
 
     feature_matrix = np.zeros((num_samples, num_features_per_signal))
 
@@ -150,13 +150,26 @@ def preprocess_emd(file_path, num_channels, num_samples_per_channel, max_imfs=10
 
                 if imfs.shape[0] == 0:
                     print(f"⚠ Nessuna IMF per esempio {i}, assegno feature di default.")
-                    feature_vector.extend(np.zeros(num_features_per_signal))  # 🟢 Ora non lo salta!
+                    feature_vector.extend(np.zeros(max_imfs * eeg_data.shape[1] * 3))  # 🟢 Ora non lo salta!
                     continue
 
                 ia, ip, if_ = extract_hht_features(imfs)
-                feature_vector.extend(np.mean(ia, axis=1))
-                feature_vector.extend(np.mean(ip, axis=1))
-                feature_vector.extend(np.mean(if_, axis=1))
+
+                # 🟢 Conserviamo tutti i dati senza riduzione
+                feature_vector.extend(ia.flatten())  
+                feature_vector.extend(ip.flatten())  
+                feature_vector.extend(if_.flatten())
+
+        # 🟢 Debug: Stampiamo la dimensione del feature_vector
+        print(f"🔍 Debug Esempio {i} - Lunghezza feature_vector = {len(feature_vector)}, Atteso = {num_features_per_signal}")
+
+        # 🟢 Padding o Troncamento per adattare la dimensione del feature_vector
+        expected_length = num_features_per_signal
+
+        if len(feature_vector) < expected_length:
+            feature_vector = np.pad(feature_vector, (0, expected_length - len(feature_vector)), mode='constant')
+        elif len(feature_vector) > expected_length:
+            feature_vector = feature_vector[:expected_length]
 
         feature_matrix[i] = feature_vector
 
@@ -165,14 +178,17 @@ def preprocess_emd(file_path, num_channels, num_samples_per_channel, max_imfs=10
     df_emd.to_csv(output_file, index=False, header=False)
 
     print(f"⚡ Dataset finale salvato: {df_emd.shape}")
-    # print(f"⚡ Label finali nel dataset preproc: {df_emd.iloc[:, 0].values}")
+    print(f"⚡ Label finali nel dataset preproc: {df_emd.iloc[:, 0].values}")
 
     return output_file
 
 
+
+
+
 ### MAIN ###
 def main():
-    file_path = r"C:\Users\Mauro\Desktop\Mauro\Universita\AI\Progetto\Dataset\test.csv"
+    file_path = r"C:\Users\Mauro\Desktop\Mauro\Universita\AI\Progetto\Dataset\test_lines2_3.csv"
     num_channels = 14
     num_samples_per_channel = 256
     fs = 128.0  

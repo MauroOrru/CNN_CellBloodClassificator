@@ -1,5 +1,3 @@
-# utils.py
-
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import matplotlib.pyplot as plt

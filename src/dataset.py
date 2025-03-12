@@ -7,19 +7,18 @@ from torch.utils.data import Dataset
 
 class BloodCellDataset(Dataset):
     def __init__(self, root_dir, valid_folders=None, img_size=400, transform=None):
-        super().__init__() # Richiamo il costruttore della classe padre Dataset
-        self.root_dir = root_dir  # Attributo con il path della cartella con le immagini
-        self.valid_folders = valid_folders if valid_folders else [] # Attributo con la lista delle cartelle valide se specificate
-        self.img_size = img_size # Attributo con la dimensione delle immagini 
-        self.transform = transform  # Attributo con le trasformazioni da applicare alle immagini
+        super().__init__() 
+        self.root_dir = root_dir  
+        self.valid_folders = valid_folders if valid_folders else [] 
+        self.img_size = img_size 
+        self.transform = transform  
         
-        self.class_images = self._load_images_per_class() # Dizionario con chiavi le label e valori i path delle immagini
-        self.classes = list(self.class_images.keys()) # Lista delle classi
-        self.num_classes = len(self.classes) # Numero di classi presenti nel dataset (valido)
+        self.class_images = self._load_images_per_class() # key: labels, value: list of paths of the images
+        self.classes = list(self.class_images.keys()) # List of the classes
+        self.num_classes = len(self.classes) 
 
-        
-        if not self.class_images: # Se non ci sono immagini nel dataset
-            raise ValueError(f"No images founded in {self.valid_folders}") # Lancio un'eccezione
+        if not self.class_images: 
+            raise ValueError(f"No images founded in {self.valid_folders}") 
 
         self.image_paths = [] # Lista contentente tutti i path del dataset valido
         self.labels = [] # Lista delle label (enumerate) per ogni immagine in self.image_paths

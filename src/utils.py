@@ -18,7 +18,7 @@ def plot_confusion_matrix(labels, preds, class_names):
 def plot_normalized_confusion_matrix(labels, preds, class_names):
     cm = confusion_matrix(labels, preds)
     cm_normalized = cm.astype('float') / cm.sum(axis=1, keepdims=True)
-    cm_normalized = np.nan_to_num(cm_normalized)  # nel caso alcune righe fossero 0
+    cm_normalized = np.nan_to_num(cm_normalized)  
 
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap="Blues",

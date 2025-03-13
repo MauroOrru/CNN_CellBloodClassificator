@@ -1,4 +1,6 @@
-# MindBigData
+# CNN for Blood Cell Classification: A
+Comparative Study of ResNet
+and EfficientNet
 
 ## Repository Composition
 

@@ -11,4 +11,4 @@
     - `transform`: Optional transformations (e.g., data augmentation) to be applied to the images.
 
 ## License
-This project is licensed under the MIT License – see the LICENSE file for details.
+This project is licensed under the MIT License.

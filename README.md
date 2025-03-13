@@ -1,6 +1,4 @@
-# CNN for Blood Cell Classification: A
-Comparative Study of ResNet
-and EfficientNet
+# CNN for Blood Cell Classification: AComparative Study of ResNet and EfficientNet
 
 ## Repository Composition
 

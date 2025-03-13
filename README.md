@@ -10,5 +10,5 @@
     - `img_size`: Dimension for the images (width and height are both set to `img_size`).
     - `transform`: Optional transformations (e.g., data augmentation) to be applied to the images.
 
-**License
+##License
 This project is licensed under the MIT License – see the LICENSE file for details.
